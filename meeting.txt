@@ -1,0 +1,4 @@
+Alice: Let’s finalize the project deadline.
+Bob: I think we should target September 30.
+Charlie: Agreed. Alice will draft the timeline.
+Bob: I will handle the client communication.

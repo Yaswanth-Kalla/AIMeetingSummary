@@ -1,0 +1,226 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>AI Meeting Summarizer</title>
+  <style>
+    body {
+      font-family: system-ui, Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      max-width: 900px;
+      width: 100%;
+      background: #fff;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+    }
+    textarea, input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      resize: vertical;
+    }
+    textarea { min-height: 160px; }
+    .row { margin-bottom: 16px; }
+    .small {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      flex: 1;
+      padding: 10px 16px;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #generate { background: #3498db; color: white; }
+    #generate:hover { background: #2980b9; }
+    #send { background: #2ecc71; color: white; }
+    #send:hover { background: #27ae60; }
+    .status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #555;
+      min-height: 18px; /* keeps layout stable */
+    }
+
+    /* Popup modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+    .modal-content h2 { margin-top: 0; }
+    .close-btn {
+      margin-top: 16px;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      background: #3498db;
+      color: #fff;
+      cursor: pointer;
+    }
+    .close-btn:hover { background: #2980b9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📝 AI Meeting Summarizer</h1>
+
+    <div class="row">
+      <label>Upload transcript (.txt)</label>
+      <input type="file" id="file" accept=".txt" />
+      <div class="small">Or paste the transcript below.</div>
+      <textarea id="transcript" placeholder="Paste transcript here..."></textarea>
+    </div>
+
+    <div class="row">
+      <label>Custom instruction</label>
+      <input id="prompt" placeholder="e.g., Executive bullet points" />
+      <div class="actions">
+        <button id="generate">🚀 Generate Summary</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>Summary (editable):</label>
+      <textarea id="summary" placeholder="Summary will appear here..."></textarea>
+    </div>
+
+    <div class="row">
+      <label>Email details</label>
+      <input id="recipients" placeholder="Recipient emails (comma-separated)" />
+      <input id="subject" placeholder="Email subject (optional)" />
+      <div class="actions">
+        <button id="send">📧 Send Email</button>
+      </div>
+    </div>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <!-- Popup modal -->
+  <div id="popup" class="modal">
+    <div class="modal-content">
+      <h2>✅ Email Sent</h2>
+      <p id="popup-message"></p>
+      <button class="close-btn" onclick="closePopup()">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = (location.hostname === 'localhost') ? 'http://localhost:8000' : location.origin;
+
+    const fileInput = document.getElementById('file');
+    const transcriptEl = document.getElementById('transcript');
+    const promptEl = document.getElementById('prompt');
+    const generateBtn = document.getElementById('generate');
+    const summaryEl = document.getElementById('summary');
+    const recipientsEl = document.getElementById('recipients');
+    const subjectEl = document.getElementById('subject');
+    const sendBtn = document.getElementById('send');
+    const statusEl = document.getElementById('status');
+    const popup = document.getElementById('popup');
+    const popupMessage = document.getElementById('popup-message');
+
+    function closePopup() {
+      popup.style.display = 'none';
+    }
+
+    fileInput.addEventListener('change', async () => {
+      const f = fileInput.files[0];
+      if (!f) return;
+      const text = await f.text();
+      transcriptEl.value = text;
+    });
+
+    generateBtn.addEventListener('click', async () => {
+      const transcript = transcriptEl.value.trim();
+      const prompt = promptEl.value.trim() || 'Summarize the meeting and extract action items.';
+      if (!transcript) { statusEl.textContent = '⚠️ Upload or paste a transcript first.'; return; }
+
+      statusEl.textContent = '⏳ Generating summary...';
+      try {
+        const res = await fetch(`${API_BASE}/summarize`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ transcript, prompt })
+        });
+        const data = await res.json();
+        summaryEl.value = data.summary || '[No summary returned]';
+        statusEl.textContent = ''; // clear status instead of showing "Done"
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = '❌ Error generating summary.';
+      }
+    });
+
+    sendBtn.addEventListener('click', async () => {
+      const summary = summaryEl.value.trim();
+      const recipients = recipientsEl.value.split(',').map(x => x.trim()).filter(Boolean);
+      const subject = subjectEl.value.trim() || 'Meeting Summary';
+      if (!summary) { statusEl.textContent = '⚠️ Nothing to send.'; return; }
+      if (!recipients.length) { statusEl.textContent = '⚠️ Enter at least one recipient.'; return; }
+
+      statusEl.textContent = '📨 Sending email...';
+      try {
+        const res = await fetch(`${API_BASE}/email`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ summary, recipients, subject })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          statusEl.textContent = '';
+          popupMessage.textContent = `The meeting summary was sent to: ${recipients.join(', ')}`;
+          popup.style.display = 'flex';
+        } else {
+          statusEl.textContent = '❌ Email failed: ' + (data.error || 'unknown');
+        }
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = '❌ Error sending email.';
+      }
+    });
+  </script>
+</body>
+</html>
