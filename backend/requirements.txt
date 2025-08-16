@@ -3,3 +3,4 @@ uvicorn
 google-generativeai==0.8.3
 python-dotenv
 pydantic>=2.0
+email-validator
