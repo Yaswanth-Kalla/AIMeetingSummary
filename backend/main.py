@@ -55,9 +55,13 @@ SYSTEM_PROMPT = (
 
 app = FastAPI(title="Meeting Summarizer API")
 
+origins = [
+    "https://meetaisummary.netlify.app", 
+    "http://localhost:5173",  # optional for local testing
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # change in production to explicit origin(s)
+    allow_origins=origins,  # change in production to explicit origin(s)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
